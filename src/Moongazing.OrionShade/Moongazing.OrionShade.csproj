@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>OrionShade</PackageId>
+    <RootNamespace>Moongazing.OrionShade</RootNamespace>
+    <Description>Sensitive-data redaction for .NET: mask secrets and PII in strings by pattern (email, card, JWT) and by key name (password, ssn, authorization) before they reach logs.</Description>
+    <PackageTags>redaction;pii;masking;secrets;logging;privacy;orion</PackageTags>
+    <PackageReadmeFile>docs/README.md</PackageReadmeFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="docs/README.md" Pack="true" PackagePath="docs/README.md" />
+    <InternalsVisibleTo Include="Moongazing.OrionShade.Tests" />
+  </ItemGroup>
+</Project>
