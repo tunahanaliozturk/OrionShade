@@ -8,6 +8,7 @@ using Moongazing.OrionShade.Redaction;
 
 using Xunit;
 
+[Collection(nameof(MeterSerial))]
 public sealed class RedactorTests
 {
     private static Redactor Build(ShadeDiagnostics diagnostics) =>
