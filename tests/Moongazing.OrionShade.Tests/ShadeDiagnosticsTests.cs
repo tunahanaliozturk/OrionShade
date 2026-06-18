@@ -66,16 +66,26 @@ public sealed class ShadeDiagnosticsTests
     private static List<(long Value, string? Rule)> Collect(ShadeDiagnostics diag, Action act)
     {
         var measurements = new List<(long, string?)>();
+
+        // Filter to this diagnostics instance's exact counter instrument. Several test classes run
+        // in parallel and all create a meter named ShadeDiagnostics.MeterName, so filtering by name
+        // alone would capture stray measurements from a concurrent redactor. Identity does not.
+        var target = diag.Redactions;
         using var listener = new MeterListener();
         listener.InstrumentPublished = (instrument, l) =>
         {
-            if (instrument.Meter.Name == ShadeDiagnostics.MeterName)
+            if (ReferenceEquals(instrument, target))
             {
                 l.EnableMeasurementEvents(instrument);
             }
         };
         listener.SetMeasurementEventCallback<long>((instrument, value, tags, state) =>
         {
+            if (!ReferenceEquals(instrument, target))
+            {
+                return;
+            }
+
             string? rule = null;
             foreach (var tag in tags)
             {
