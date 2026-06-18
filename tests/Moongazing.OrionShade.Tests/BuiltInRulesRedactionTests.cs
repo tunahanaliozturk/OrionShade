@@ -108,11 +108,13 @@ public sealed class BuiltInRulesRedactionTests
     }
 
     [Fact]
-    public void Built_in_rules_collection_exposes_the_three_named_rules()
+    public void Built_in_rules_collection_exposes_the_named_rules()
     {
-        Assert.Equal(3, BuiltInRules.All.Count);
+        Assert.Equal(5, BuiltInRules.All.Count);
         Assert.Contains(BuiltInRules.All, r => r.Name == "email");
         Assert.Contains(BuiltInRules.All, r => r.Name == "credit_card");
+        Assert.Contains(BuiltInRules.All, r => r.Name == "iban");
+        Assert.Contains(BuiltInRules.All, r => r.Name == "phone");
         Assert.Contains(BuiltInRules.All, r => r.Name == "jwt");
     }
 
