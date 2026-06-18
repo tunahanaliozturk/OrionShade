@@ -10,12 +10,24 @@ using Xunit;
 /// </summary>
 public sealed class SensitiveKeysetBehaviourTests
 {
-    public static TheoryData<string> DefaultKeys =>
-    [
-        "password", "passwd", "pwd", "secret", "token", "authorization", "auth",
-        "apikey", "api_key", "access_token", "refresh_token", "client_secret",
-        "ssn", "creditcard", "credit_card", "cardnumber", "card_number", "cvv", "pin",
-    ];
+    public static TheoryData<string> DefaultKeys
+    {
+        get
+        {
+            var data = new TheoryData<string>();
+            foreach (var key in new[]
+            {
+                "password", "passwd", "pwd", "secret", "token", "authorization", "auth",
+                "apikey", "api_key", "access_token", "refresh_token", "client_secret",
+                "ssn", "creditcard", "credit_card", "cardnumber", "card_number", "cvv", "pin",
+            })
+            {
+                data.Add(key);
+            }
+
+            return data;
+        }
+    }
 
     [Theory]
     [MemberData(nameof(DefaultKeys))]

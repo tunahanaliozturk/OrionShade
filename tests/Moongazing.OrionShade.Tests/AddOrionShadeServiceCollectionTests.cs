@@ -12,6 +12,7 @@ using Xunit;
 /// Covers <see cref="OrionShadeServiceCollectionExtensions.AddOrionShade"/>: registration of the
 /// redactor and diagnostics, singleton lifetime, idempotent registration, and argument validation.
 /// </summary>
+[Collection(nameof(MeterSerial))]
 public sealed class AddOrionShadeServiceCollectionTests
 {
     [Fact]

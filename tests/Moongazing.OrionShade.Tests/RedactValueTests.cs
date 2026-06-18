@@ -10,6 +10,7 @@ using Xunit;
 /// Covers <see cref="Redactor.RedactValue"/>: sensitive-key short-circuit masking across the full
 /// default keyset (case-insensitively) and the non-sensitive-key fall-through to the pattern sweep.
 /// </summary>
+[Collection(nameof(MeterSerial))]
 public sealed class RedactValueTests
 {
     private static Redactor Build(ShadeDiagnostics diagnostics) =>

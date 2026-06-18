@@ -12,6 +12,7 @@ using Xunit;
 /// Covers <see cref="ShadeDiagnostics"/> and its integration with the redactor: the meter name, the
 /// redaction counter, and the rule tag attached to each recorded redaction.
 /// </summary>
+[Collection(nameof(MeterSerial))]
 public sealed class ShadeDiagnosticsTests
 {
     [Fact]

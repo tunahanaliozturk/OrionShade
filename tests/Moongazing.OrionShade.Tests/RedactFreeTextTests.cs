@@ -12,6 +12,7 @@ using Xunit;
 /// Covers <see cref="Redactor.Redact"/> over free text: argument handling, the empty-input fast
 /// path, clean input passing through untouched, idempotence, and multi-rule application order.
 /// </summary>
+[Collection(nameof(MeterSerial))]
 public sealed class RedactFreeTextTests
 {
     private static Redactor Build(ShadeDiagnostics diagnostics) =>

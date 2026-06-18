@@ -10,6 +10,7 @@ using Xunit;
 /// Exercises each built-in pattern rule (email, credit card, JWT) individually and in combination
 /// through a redactor wired with <see cref="BuiltInRules.All"/>.
 /// </summary>
+[Collection(nameof(MeterSerial))]
 public sealed class BuiltInRulesRedactionTests
 {
     private static Redactor Build(ShadeDiagnostics diagnostics) =>
