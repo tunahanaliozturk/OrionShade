@@ -92,6 +92,7 @@ public sealed class IbanAndPhoneRulesTests
     private static string CollectFirstRule(ShadeDiagnostics diag, Func<string> act, Action<string?> onRule)
     {
         var target = diag.Redactions;
+        var captured = false;
         using var listener = new MeterListener();
         listener.InstrumentPublished = (instrument, l) =>
         {
@@ -102,7 +103,7 @@ public sealed class IbanAndPhoneRulesTests
         };
         listener.SetMeasurementEventCallback<long>((instrument, value, tags, state) =>
         {
-            if (!ReferenceEquals(instrument, target))
+            if (captured || !ReferenceEquals(instrument, target))
             {
                 return;
             }
@@ -111,7 +112,9 @@ public sealed class IbanAndPhoneRulesTests
             {
                 if (tag.Key == "rule")
                 {
+                    captured = true;
                     onRule(tag.Value as string);
+                    return;
                 }
             }
         });
