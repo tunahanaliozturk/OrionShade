@@ -7,8 +7,8 @@ using Moongazing.OrionShade;
 /// <summary>
 /// Runnable tour of OrionShade. Builds a real redactor through the library's DI entry point
 /// (<c>AddOrionShade</c>) with the built-in defaults, then walks through pattern redaction,
-/// key-name redaction, mask strategies, custom rules/keys, and each built-in rule on its own.
-/// Prints original then redacted at every step so the effect is visible.
+/// key-name redaction, mask strategies, custom rules/keys, each built-in rule on its own, and
+/// structured JSON redaction. Prints original then redacted at every step so the effect is visible.
 /// </summary>
 internal static class Program
 {
@@ -29,6 +29,7 @@ internal static class Program
         new MaskStrategyDemo().Run();
         new CustomRuleDemo().Run();
         new BuiltInRulesDemo().Run();
+        new JsonRedactionDemo(redactor).Run();
 
         Console.WriteLine();
         Console.WriteLine(new string('=', 78));
