@@ -125,5 +125,7 @@ public sealed class AddOrionShadeServiceCollectionTests
         public string Redact(string input) => input;
 
         public string RedactValue(string key, string value) => value;
+
+        public string RedactJson(string json) => json;
     }
 }

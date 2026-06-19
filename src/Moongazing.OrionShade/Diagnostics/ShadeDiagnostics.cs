@@ -18,7 +18,7 @@ public sealed class ShadeDiagnostics : IDisposable
     /// <summary>Create the meter and its instruments.</summary>
     public ShadeDiagnostics()
     {
-        meter = new Meter(MeterName, "0.1.0");
+        meter = new Meter(MeterName, "0.2.0");
         Redactions = meter.CreateCounter<long>(
             "orionshade.redactions",
             unit: "{redaction}",

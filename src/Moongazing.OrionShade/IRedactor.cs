@@ -20,4 +20,14 @@ public interface IRedactor
     /// <param name="key">The field name the value belongs to.</param>
     /// <param name="value">The value to redact.</param>
     string RedactValue(string key, string value);
+
+    /// <summary>
+    /// Redact a JSON document, preserving its structure. Recurses through nested objects and arrays;
+    /// each string value is redacted in the context of the property name that owns it (so a sensitive
+    /// key masks its value wholesale, and any other string is passed through the pattern rules).
+    /// Non-string values (numbers, booleans, null) are left untouched. When the input is not valid
+    /// JSON it is treated as free text and passed through <see cref="Redact"/> instead.
+    /// </summary>
+    /// <param name="json">The JSON document to redact.</param>
+    string RedactJson(string json);
 }
