@@ -213,7 +213,8 @@ var json = """
     }
     """;
 
-redactor.RedactJson(json);
+// RedactJson returns a new string; the input is never mutated, so use the returned value.
+var safe = redactor.RedactJson(json);
 // "user" and the contact email pass through the pattern rules; "password" and "iban" are masked
 // whole by key name; the "+"-prefixed phone is caught by the phone rule; "attempts" stays 3.
 ```
