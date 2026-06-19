@@ -32,10 +32,16 @@ conservative, aimed at catching obvious leaks on the logging hot path with predi
 Redaction happens two ways, and `RedactValue` decides between them by the key it is given.
 
 - **By pattern.** `Redact` runs every configured `RedactionRule` over free text, replacing each
-  regex match with a mask. The built-in rules cover email, card-like digit runs, and JWTs.
+  regex match with a mask. The built-in rules cover email, IBAN, phone, card-like digit runs, and
+  JWTs.
 - **By key name.** `RedactValue(key, value)` first checks the `SensitiveKeyset`. If the key is
   sensitive (`password`, `authorization`, `ssn`, ...) the whole value is masked with the key mask.
   Otherwise the value falls through to the same pattern sweep as `Redact`.
+- **By JSON structure.** `RedactJson(json)` parses a JSON document and redacts it in place,
+  recursing nested objects and arrays. Each string value is redacted in the context of the property
+  that owns it, so a sensitive key masks its value wholesale and any other string passes through the
+  pattern rules. Numbers, booleans, and nulls are left untouched, and the structure is preserved.
+  Input that is not valid JSON falls back to free-text `Redact`.
 
 ```
                           ┌──────────────────────────┐
@@ -57,10 +63,17 @@ can see what is being caught and how often.
 
 ## Features
 
-- **Two redaction modes.** Pattern matching inside free text, and whole-value masking by sensitive
-  key name, exposed through a single `IRedactor`.
-- **Source-generated built-in rules.** Email, credit card (keeps the last four digits), and JWT,
-  compiled at build time via `[GeneratedRegex]`, not at runtime.
+- **Three redaction modes.** Pattern matching inside free text, whole-value masking by sensitive
+  key name, and structure-preserving redaction of a JSON document, all exposed through a single
+  `IRedactor`.
+- **Source-generated built-in rules.** Email, IBAN, phone (keeps the last two digits), credit card
+  (keeps the last four digits), and JWT, compiled at build time via `[GeneratedRegex]`, not at
+  runtime. Phone is matched before credit card so a `+`-prefixed international number redacts as a
+  phone rather than being partially consumed as a card.
+- **JSON-aware redaction.** `RedactJson` walks a JSON document with `System.Text.Json`, redacting
+  each string leaf in the context of the property that owns it and recursing nested objects and
+  arrays. Structure is preserved; non-string values are untouched; invalid JSON falls back to
+  free-text redaction.
 - **A frozen sensitive-key set.** A sensible default list of credential and PII field names matched
   case-insensitively through a `FrozenSet`, extensible with your own keys.
 - **Pluggable mask strategies.** A mask is just a `Func<string, string>`. Ship with `Masks.Full()`,
@@ -88,11 +101,11 @@ dotnet add package OrionShade
 
 ## Quick start
 
-Register OrionShade with the built-in defaults (email, card, and JWT patterns plus the common
-sensitive keys):
+Register OrionShade with the built-in defaults (email, IBAN, phone, card, and JWT patterns plus the
+common sensitive keys):
 
 ```csharp
-builder.Services.AddOrionShade();   // built-in email, card, JWT rules + common sensitive keys
+builder.Services.AddOrionShade();   // built-in email, IBAN, phone, card, JWT rules + common sensitive keys
 ```
 
 Inject `IRedactor` and scrub before you log:
@@ -127,14 +140,17 @@ redactor.Redact("the quick brown fox");            // unchanged when nothing mat
 ### Pattern rules
 
 `Redact` applies every configured rule to free text in order and masks each match. With the
-defaults, that means email, credit card, and JWT:
+defaults, that means email, IBAN, phone, credit card, and JWT:
 
 ```csharp
 redactor.Redact("contact jane@acme.com about card 4111 1111 1111 1234");
 // "contact [REDACTED] about card ************1234"
 ```
 
-The credit-card rule keeps the last four digits; email and JWT are masked whole.
+The credit-card rule keeps the last four digits and the phone rule keeps the last two; email, IBAN,
+and JWT are masked whole. The IBAN and phone rules run before the credit-card rule, so a
+`+`-prefixed international number is claimed by the phone rule (keeping its last two digits) instead
+of being partially consumed as a card, and an IBAN is masked whole by its country-code prefix.
 
 ### The sensitive key set
 
@@ -178,6 +194,33 @@ builder.Services.AddOrionShade(shade => shade
     .AddSensitiveKeys("national_id"));
 // Redact("order 12345") => "order #";  an email passes through (defaults not opted in)
 ```
+
+### JSON documents
+
+`RedactJson` redacts a JSON document while keeping its shape. It recurses nested objects and arrays
+and redacts each string value in the context of the property that owns it: a sensitive key masks its
+value wholesale, and any other string passes through the same pattern rules as `Redact`. Numbers,
+booleans, and nulls are left as they are.
+
+```csharp
+var json = """
+    {
+      "user": "jane.doe@acme.com",
+      "password": "hunter2",
+      "attempts": 3,
+      "contacts": ["+1 415 555 0100", "team@acme.com"],
+      "payment": { "iban": "DE89 3704 0044 0532 0130 00" }
+    }
+    """;
+
+// RedactJson returns a new string; the input is never mutated, so use the returned value.
+var safe = redactor.RedactJson(json);
+// "user" and the contact email pass through the pattern rules; "password" and "iban" are masked
+// whole by key name; the "+"-prefixed phone is caught by the phone rule; "attempts" stays 3.
+```
+
+When the input is not valid JSON, `RedactJson` treats the whole string as free text and runs it
+through `Redact` instead, so it is always safe to call on a value that may or may not be JSON.
 
 ### Mask strategies
 
@@ -227,7 +270,7 @@ OrionShade exposes a `System.Diagnostics.Metrics.Meter` named `Moongazing.OrionS
 
 | Instrument | Type | Tag | Meaning |
 |------------|------|-----|---------|
-| `orionshade.redactions` | `Counter<long>` | `rule` | One per redaction. The tag is the pattern name (for example `email`, `credit_card`, `jwt`) or `sensitive_key` for a key-based mask. |
+| `orionshade.redactions` | `Counter<long>` | `rule` | One per redaction. The tag is the pattern name (for example `email`, `iban`, `phone`, `credit_card`, `jwt`) or `sensitive_key` for a key-based mask. |
 
 Wire it into OpenTelemetry by subscribing to the meter:
 
@@ -270,7 +313,7 @@ hardware-dependent and meant to be produced on the machine you care about.
 ## Versioning
 
 OrionShade follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Notable changes are
-recorded in [CHANGELOG.md](CHANGELOG.md). The current release is `0.1.0`; while the package is
+recorded in [CHANGELOG.md](CHANGELOG.md). The current release is `0.2.0`; while the package is
 pre-1.0, minor versions may still adjust the public surface.
 
 ---

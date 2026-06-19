@@ -5,6 +5,7 @@ using Moongazing.OrionShade.Redaction;
 
 /// <summary>
 /// Each built-in rule exercised on its own. <see cref="BuiltInRules.Email"/>,
+/// <see cref="BuiltInRules.Iban"/>, <see cref="BuiltInRules.Phone"/>,
 /// <see cref="BuiltInRules.CreditCard"/>, and <see cref="BuiltInRules.Jwt"/> are real
 /// <see cref="RedactionRule"/> instances; here each is dropped into a single-rule
 /// <see cref="Redactor"/> so its effect is isolated from the others.
@@ -19,6 +20,16 @@ internal sealed class BuiltInRulesDemo
             BuiltInRules.Email,
             "user jane.doe@acme.com signed in",
             "masks email addresses whole");
+
+        ShowRule(
+            BuiltInRules.Iban,
+            "transfer to DE89 3704 0044 0532 0130 00 cleared",
+            "masks IBAN bank account numbers whole");
+
+        ShowRule(
+            BuiltInRules.Phone,
+            "call back on +1 415 555 0100 anytime",
+            "masks international phone numbers, keeping the last two digits");
 
         ShowRule(
             BuiltInRules.CreditCard,
