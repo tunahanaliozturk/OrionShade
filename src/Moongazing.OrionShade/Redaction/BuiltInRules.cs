@@ -33,10 +33,12 @@ public static partial class BuiltInRules
     public static RedactionRule Phone { get; } = new("phone", PhoneRegex(), Masks.KeepLast(2));
 
     /// <summary>
-    /// All built-in rules. IBAN is matched before the credit-card rule so an account number's digit
-    /// groups are claimed by the more specific IBAN pattern first.
+    /// All built-in rules. The IBAN and phone rules are matched before the credit-card rule so a more
+    /// specific anchored pattern claims its digits first: IBAN by its country-code prefix, and phone by
+    /// its leading <c>+</c>. Without this, the credit-card rule would partially consume a compact
+    /// <c>+</c>-prefixed international number and leave its trailing digits visible.
     /// </summary>
-    public static IReadOnlyList<RedactionRule> All { get; } = [Email, Iban, CreditCard, Phone, Jwt];
+    public static IReadOnlyList<RedactionRule> All { get; } = [Email, Iban, Phone, CreditCard, Jwt];
 
     [GeneratedRegex(@"[\w.+-]+@[\w-]+\.[\w.-]+", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex EmailRegex();

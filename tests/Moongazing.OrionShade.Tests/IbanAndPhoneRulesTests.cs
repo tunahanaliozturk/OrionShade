@@ -1,5 +1,7 @@
 namespace Moongazing.OrionShade.Tests;
 
+using System.Diagnostics.Metrics;
+
 using Moongazing.OrionShade;
 using Moongazing.OrionShade.Diagnostics;
 using Moongazing.OrionShade.Redaction;
@@ -59,6 +61,66 @@ public sealed class IbanAndPhoneRulesTests
     public void Phone_rule_carries_the_expected_name()
     {
         Assert.Equal("phone", BuiltInRules.Phone.Name);
+    }
+
+    [Fact]
+    public void Compact_plus_prefixed_phone_is_redacted_by_the_phone_rule_not_credit_card()
+    {
+        using var diag = new ShadeDiagnostics();
+        var redactor = Build(diag);
+
+        // A compact international number whose 13-16 digit run would otherwise be claimed by the
+        // credit-card rule (which keeps the last four digits). Because the phone rule is ordered
+        // before credit-card, its leading-+ anchored pattern wins and KeepLast(2) applies, so only
+        // the final two digits survive.
+        const string phone = "+4915123456789";
+
+        string? rule = null;
+        var result = CollectFirstRule(diag, () => redactor.Redact($"reach me at {phone} thanks"), r => rule = r);
+
+        Assert.Equal("phone", rule);
+        Assert.DoesNotContain(phone, result, StringComparison.Ordinal);
+        // KeepLast(2): the final two digits remain, the third-from-last (7) does not, proving the
+        // credit-card rule's KeepLast(4) did not partially consume the run.
+        Assert.Contains("89", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("789", result, StringComparison.Ordinal);
+    }
+
+    // Runs an action while listening to a diagnostics instance's redaction counter, returns the redacted
+    // string, and reports the first rule tag observed. Filters by instrument identity because several
+    // test classes run in parallel against meters sharing ShadeDiagnostics.MeterName.
+    private static string CollectFirstRule(ShadeDiagnostics diag, Func<string> act, Action<string?> onRule)
+    {
+        var target = diag.Redactions;
+        using var listener = new MeterListener();
+        listener.InstrumentPublished = (instrument, l) =>
+        {
+            if (ReferenceEquals(instrument, target))
+            {
+                l.EnableMeasurementEvents(instrument);
+            }
+        };
+        listener.SetMeasurementEventCallback<long>((instrument, value, tags, state) =>
+        {
+            if (!ReferenceEquals(instrument, target))
+            {
+                return;
+            }
+
+            foreach (var tag in tags)
+            {
+                if (tag.Key == "rule")
+                {
+                    onRule(tag.Value as string);
+                }
+            }
+        });
+        listener.Start();
+
+        var result = act();
+
+        listener.Dispose();
+        return result;
     }
 
     [Fact]
