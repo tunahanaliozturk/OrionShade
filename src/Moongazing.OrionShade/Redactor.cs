@@ -50,6 +50,15 @@ public sealed class Redactor : IRedactor
         var result = input;
         foreach (var rule in rules)
         {
+            // Fast path: probe with IsMatch before building the replacement evaluator. When the text
+            // has no match (the common case for most logged values) this skips allocating the
+            // MatchEvaluator closure and returns the string untouched. Regex.Replace on a no-match
+            // input already returns the same reference, so output is byte-identical either way.
+            if (!rule.Pattern.IsMatch(result))
+            {
+                continue;
+            }
+
             result = rule.Pattern.Replace(result, match =>
             {
                 diagnostics.Record(rule.Name);
@@ -103,7 +112,10 @@ public sealed class Redactor : IRedactor
                 WriteRedacted(writer, document.RootElement, ownerKey: null);
             }
 
-            return System.Text.Encoding.UTF8.GetString(buffer.ToArray());
+            // Decode straight from the stream's backing array instead of copying it out with
+            // ToArray(): GetBuffer() exposes the same bytes the writer just produced, so this drops
+            // one full-length array allocation and copy per call while producing identical output.
+            return System.Text.Encoding.UTF8.GetString(buffer.GetBuffer(), 0, (int)buffer.Length);
         }
     }
 
