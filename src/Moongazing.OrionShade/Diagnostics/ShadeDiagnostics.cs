@@ -1,6 +1,30 @@
 namespace Moongazing.OrionShade.Diagnostics;
 
 using System.Diagnostics.Metrics;
+using System.Reflection;
+
+/// <summary>
+/// Derives the diagnostics meter version from the assembly informational version so it never drifts
+/// from the package version.
+/// </summary>
+internal static class MeterVersion
+{
+    /// <summary>The resolved meter version (the package version without any build metadata).</summary>
+    public static string Value { get; } = Resolve();
+
+    private static string Resolve()
+    {
+        var asm = typeof(MeterVersion).Assembly;
+        var info = asm.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+        if (!string.IsNullOrEmpty(info))
+        {
+            var plus = info.IndexOf('+');
+            return plus >= 0 ? info[..plus] : info;
+        }
+
+        return asm.GetName().Version?.ToString(3) ?? "0.0.0";
+    }
+}
 
 /// <summary>
 /// OpenTelemetry instrumentation for redaction. Exposes a <see cref="Meter"/> named
@@ -18,7 +42,7 @@ public sealed class ShadeDiagnostics : IDisposable
     /// <summary>Create the meter and its instruments.</summary>
     public ShadeDiagnostics()
     {
-        meter = new Meter(MeterName, "0.2.0");
+        meter = new Meter(MeterName, MeterVersion.Value);
         Redactions = meter.CreateCounter<long>(
             "orionshade.redactions",
             unit: "{redaction}",

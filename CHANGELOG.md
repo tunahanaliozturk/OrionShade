@@ -57,5 +57,6 @@ Initial release. Sensitive-data redaction.
 17 tests across the masks, the redactor (email, card, JWT, clean text, sensitive keys, custom
 rule), the keyset, and registration.
 
+[0.2.1]: https://github.com/tunahanaliozturk/OrionShade/releases/tag/v0.2.1
 [0.2.0]: https://github.com/tunahanaliozturk/OrionShade/releases/tag/v0.2.0
 [0.1.0]: https://github.com/tunahanaliozturk/OrionShade/releases/tag/v0.1.0
