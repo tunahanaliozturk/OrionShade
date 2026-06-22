@@ -16,7 +16,7 @@ internal sealed class MaskStrategyDemo
     {
         DemoConsole.Section("3. Mask strategies: Masks.Full vs Masks.KeepLast");
 
-        const string secret = "4111111111111234";
+        const string secret = "4242424242424242";
 
         var full = Masks.Full();             // => "[REDACTED]"
         var fullToken = Masks.Full("***");   // => "***"

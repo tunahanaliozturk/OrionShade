@@ -6,9 +6,10 @@ using Moongazing.OrionShade.Redaction;
 /// <summary>
 /// Each built-in rule exercised on its own. <see cref="BuiltInRules.Email"/>,
 /// <see cref="BuiltInRules.Iban"/>, <see cref="BuiltInRules.Phone"/>,
-/// <see cref="BuiltInRules.CreditCard"/>, and <see cref="BuiltInRules.Jwt"/> are real
-/// <see cref="RedactionRule"/> instances; here each is dropped into a single-rule
-/// <see cref="Redactor"/> so its effect is isolated from the others.
+/// <see cref="BuiltInRules.CreditCard"/>, <see cref="BuiltInRules.Jwt"/>, and
+/// <see cref="BuiltInRules.ConnectionStringSecret"/> are real <see cref="RedactionRule"/> instances;
+/// here each is dropped into a single-rule <see cref="Redactor"/> so its effect is isolated from the
+/// others.
 /// </summary>
 internal sealed class BuiltInRulesDemo
 {
@@ -33,13 +34,18 @@ internal sealed class BuiltInRulesDemo
 
         ShowRule(
             BuiltInRules.CreditCard,
-            "charged 4111 1111 1111 1234 today",
-            "masks card-like digit runs, keeping the last four");
+            "charged 4242 4242 4242 4242 today",
+            "masks Luhn-valid card runs, keeping the last four");
 
         ShowRule(
             BuiltInRules.Jwt,
             "bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjMifQ.s5d8Qb7rXk2yqZ",
             "masks JSON Web Tokens whole");
+
+        ShowRule(
+            BuiltInRules.ConnectionStringSecret,
+            "Server=db;Database=app;Password=P@ssw0rd!;Pooling=true",
+            "masks the secret value of a connection-string pair, keeping the key visible");
     }
 
     private static void ShowRule(RedactionRule rule, string sample, string description)

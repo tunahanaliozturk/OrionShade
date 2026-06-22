@@ -12,7 +12,7 @@ internal sealed class LogLineDemo(IRedactor redactor)
 
         const string logLine =
             "2026-06-18T09:14:02Z INFO  checkout: user jane.doe@acme.com paid with card " +
-            "4111 1111 1111 1234 token=eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjMifQ.s5d8Qb7rXk2yqZ";
+            "4242 4242 4242 4242 token=eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjMifQ.s5d8Qb7rXk2yqZ";
 
         var scrubbed = redactor.Redact(logLine);
 

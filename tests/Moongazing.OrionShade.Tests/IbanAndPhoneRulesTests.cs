@@ -152,6 +152,6 @@ public sealed class IbanAndPhoneRulesTests
     {
         Assert.Contains(BuiltInRules.All, r => r.Name == "iban");
         Assert.Contains(BuiltInRules.All, r => r.Name == "phone");
-        Assert.Equal(5, BuiltInRules.All.Count);
+        Assert.Equal(6, BuiltInRules.All.Count);
     }
 }

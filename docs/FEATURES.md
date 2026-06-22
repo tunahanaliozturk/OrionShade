@@ -67,16 +67,26 @@ fires.
 
 ## 3. Built-in rules
 
-`BuiltInRules` exposes three source-generated rules and an `All` collection. The patterns are
+`BuiltInRules` exposes six source-generated rules and an `All` collection. The patterns are
 compiled at build time via `[GeneratedRegex]`.
 
 | Rule | Property | Pattern target | Mask |
 |------|----------|----------------|------|
 | Email | `BuiltInRules.Email` | Email addresses | `Masks.Full()` (whole match) |
-| Credit card | `BuiltInRules.CreditCard` | Card-like digit runs (4-4-4-1..4, optional spaces/dashes) | `Masks.KeepLast(4)` |
+| IBAN | `BuiltInRules.Iban` | ISO 13616 account numbers, optional space/dash groups | `Masks.Full()` (whole match) |
+| Phone | `BuiltInRules.Phone` | International `+`-prefixed numbers | `Masks.KeepLast(2)` |
+| Credit card | `BuiltInRules.CreditCard` | Card-like digit runs (4-4-4-1..4, optional spaces/dashes), masked only when Luhn-valid | `Masks.KeepLast(4)` |
 | JWT | `BuiltInRules.Jwt` | `eyJ...`-style three-part tokens | `Masks.Full()` (whole match) |
+| Connection-string secret | `BuiltInRules.ConnectionStringSecret` | The value of a `Password=`, `Pwd=`, `AccountKey=`, `SharedAccessKey=`, or `Secret=` pair, up to the next `;` | Value masked to `[REDACTED]`, key kept |
 
-`BuiltInRules.All` returns `[Email, CreditCard, Jwt]`, the same set `UseDefaults()` installs.
+`BuiltInRules.All` returns `[ConnectionStringSecret, Email, Iban, Phone, CreditCard, Jwt]`, the same
+set `UseDefaults()` installs. The connection-string rule runs first so a secret value is masked as a
+unit before any inner pattern could rewrite it, and IBAN and phone run before the credit-card rule so
+a `+`-prefixed international number is not partly consumed as a card.
+
+The credit-card rule masks a candidate run only when its digits form a valid Luhn (mod 10) sequence,
+so an order id or reference number of the same length is left alone; a run it declines is not counted
+in telemetry.
 
 The rules are intentionally conservative. They are tuned to catch obvious leaks on a logging hot
 path with predictable cost, not to be an exhaustive PII detector.

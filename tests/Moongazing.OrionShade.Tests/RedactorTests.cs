@@ -32,10 +32,12 @@ public sealed class RedactorTests
         using var diag = new ShadeDiagnostics();
         var redactor = Build(diag);
 
-        var result = redactor.Redact("card 4111 1111 1111 1234 on file");
+        // A genuine Luhn-valid PAN (Visa test number); the card rule masks all but the last four.
+        var result = redactor.Redact("card 4242 4242 4242 4242 on file");
 
-        Assert.DoesNotContain("4111 1111 1111 1234", result, StringComparison.Ordinal);
-        Assert.Contains("1234", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("4242 4242 4242 4242", result, StringComparison.Ordinal);
+        Assert.EndsWith("4242 on file", result, StringComparison.Ordinal);
+        Assert.StartsWith("card *", result, StringComparison.Ordinal);
     }
 
     [Fact]

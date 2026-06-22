@@ -24,10 +24,10 @@ public class RedactBenchmarks
         "GET /api/orders/4821 completed in 37ms with status 200 for tenant northwind";
 
     private const string WithMatches =
-        "user jane@acme.com paid with 4111 1111 1111 1234 token eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0In0.dBjftJeZ4CVP";
+        "user jane@acme.com paid with 4242 4242 4242 4242 token eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0In0.dBjftJeZ4CVP";
 
     private const string LongLine =
-        "incoming request body: {\"name\":\"Jane\",\"email\":\"jane@acme.com\",\"card\":\"4111111111111234\"," +
+        "incoming request body: {\"name\":\"Jane\",\"email\":\"jane@acme.com\",\"card\":\"4242424242424242\"," +
         "\"notes\":\"contact me at jane.doe@example.org or admin@acme.io\",\"trace\":\"no secrets here just plain text\"," +
         "\"more\":\"padding padding padding padding padding padding padding padding padding\"}";
 

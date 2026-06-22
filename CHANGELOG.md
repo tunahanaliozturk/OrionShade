@@ -6,6 +6,33 @@ All notable changes to OrionShade are documented in this file. The format is bas
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-06-22
+
+### Added
+
+Two more built-in rules and a Luhn refinement of the card rule. All are part of `BuiltInRules.All`,
+so they apply wherever the defaults are used, and each stays individually addressable.
+
+- `BuiltInRules.ConnectionStringSecret`: source-generated rule that masks the secret value of a
+  connection-string credential pair (`Password=`, `Pwd=`, `AccountKey=`, `SharedAccessKey=`,
+  `Secret=`, matched case-insensitively) while leaving the key and the rest of the connection string
+  readable. The value runs to the next `;` delimiter or the end of the text, so a base64 account key
+  is masked whole including its `=` padding. It is ordered first in `All` so a secret value is masked
+  as a unit before any inner pattern could partially rewrite it.
+
+### Changed
+
+- `BuiltInRules.CreditCard` now masks a candidate digit run only when it is a valid Luhn (mod 10)
+  sequence. A 13-to-16 digit run that fails the checksum (an order id, a reference number) is left in
+  the clear instead of being masked, cutting false positives. A run that is not masked is not counted
+  in telemetry. This narrows what the default card rule masks: a digit run that was masked before but
+  is not a valid card number is no longer masked. The rule keeps its `credit_card` name, its position,
+  and its keep-last-four behaviour for genuine cards.
+- `Redactor.Redact` records a redaction only when a rule's mask actually changes the matched text. A
+  value-gated rule (the Luhn card check) can match a candidate with its pattern yet decline to mask
+  it; the counter now reflects what was masked rather than what was examined. Output is unchanged for
+  every rule whose mask always transforms a match (every built-in mask before this release).
+
 ## [0.2.1] - 2026-06-20
 
 ### Performance
@@ -57,6 +84,7 @@ Initial release. Sensitive-data redaction.
 17 tests across the masks, the redactor (email, card, JWT, clean text, sensitive keys, custom
 rule), the keyset, and registration.
 
+[0.3.0]: https://github.com/tunahanaliozturk/OrionShade/releases/tag/v0.3.0
 [0.2.1]: https://github.com/tunahanaliozturk/OrionShade/releases/tag/v0.2.1
 [0.2.0]: https://github.com/tunahanaliozturk/OrionShade/releases/tag/v0.2.0
 [0.1.0]: https://github.com/tunahanaliozturk/OrionShade/releases/tag/v0.1.0

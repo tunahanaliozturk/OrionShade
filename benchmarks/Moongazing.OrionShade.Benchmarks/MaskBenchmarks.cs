@@ -18,7 +18,7 @@ public class MaskBenchmarks
     private Func<string, string> full = null!;
     private Func<string, string> keepLast4 = null!;
 
-    private const string CardNumber = "4111111111111234";
+    private const string CardNumber = "4242424242424242";
 
     [GlobalSetup]
     public void Setup()

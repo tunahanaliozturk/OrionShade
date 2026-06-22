@@ -47,9 +47,9 @@ public sealed class BuiltInRulesRedactionTests
     }
 
     [Theory]
-    [InlineData("4111 1111 1111 1234", "1234")]
-    [InlineData("4111-1111-1111-1234", "1234")]
-    [InlineData("4111111111111234", "1234")]
+    [InlineData("4242 4242 4242 4242", "4242")]
+    [InlineData("5555-5555-5555-4444", "4444")]
+    [InlineData("4111111111111111", "1111")]
     public void Card_rule_keeps_only_the_last_four_digits(string card, string lastFour)
     {
         using var diag = new ShadeDiagnostics();
@@ -59,8 +59,8 @@ public sealed class BuiltInRulesRedactionTests
 
         Assert.DoesNotContain(card, result, StringComparison.Ordinal);
         Assert.Contains(lastFour, result, StringComparison.Ordinal);
-        // The leading digits must be masked: the original first group must be gone.
-        Assert.DoesNotContain("4111", result, StringComparison.Ordinal);
+        // The leading digits must be masked: the matched run must be replaced with mask characters.
+        Assert.Contains('*', result);
     }
 
     [Fact]
@@ -71,9 +71,9 @@ public sealed class BuiltInRulesRedactionTests
 
         // The card mask (KeepLast) replaces matched characters one-for-one including spaces/hyphens,
         // so the trailing visible portion is the last four matched characters verbatim.
-        var result = redactor.Redact("4111 1111 1111 1234");
+        var result = redactor.Redact("4242 4242 4242 4242");
 
-        Assert.EndsWith("1234", result, StringComparison.Ordinal);
+        Assert.EndsWith("4242", result, StringComparison.Ordinal);
         Assert.StartsWith("*", result, StringComparison.Ordinal);
     }
 
@@ -88,6 +88,17 @@ public sealed class BuiltInRulesRedactionTests
 
         Assert.DoesNotContain(jwt, result, StringComparison.Ordinal);
         Assert.Contains(Masks.DefaultToken, result, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("the eye sees everything in plain sight")] // no eyJ token
+    [InlineData("header eyJhbGc.eyJzdWI only two segments")] // a JWT needs three dot-separated parts
+    public void Jwt_rule_does_not_match_non_token_text(string text)
+    {
+        using var diag = new ShadeDiagnostics();
+        var redactor = Build(diag);
+
+        Assert.Equal(text, redactor.Redact(text));
     }
 
     [Fact]
@@ -110,12 +121,13 @@ public sealed class BuiltInRulesRedactionTests
     [Fact]
     public void Built_in_rules_collection_exposes_the_named_rules()
     {
-        Assert.Equal(5, BuiltInRules.All.Count);
+        Assert.Equal(6, BuiltInRules.All.Count);
         Assert.Contains(BuiltInRules.All, r => r.Name == "email");
         Assert.Contains(BuiltInRules.All, r => r.Name == "credit_card");
         Assert.Contains(BuiltInRules.All, r => r.Name == "iban");
         Assert.Contains(BuiltInRules.All, r => r.Name == "phone");
         Assert.Contains(BuiltInRules.All, r => r.Name == "jwt");
+        Assert.Contains(BuiltInRules.All, r => r.Name == "connection_string_secret");
     }
 
     [Fact]
@@ -124,5 +136,6 @@ public sealed class BuiltInRulesRedactionTests
         Assert.Equal("email", BuiltInRules.Email.Name);
         Assert.Equal("credit_card", BuiltInRules.CreditCard.Name);
         Assert.Equal("jwt", BuiltInRules.Jwt.Name);
+        Assert.Equal("connection_string_secret", BuiltInRules.ConnectionStringSecret.Name);
     }
 }

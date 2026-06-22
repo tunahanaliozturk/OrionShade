@@ -2,7 +2,7 @@
 
 Where OrionShade might go, and how you can help shape it.
 
-The current release is **0.2.1**: rule-based redaction for the logging path, with built-in pattern
+The current release is **0.3.0**: rule-based redaction for the logging path, with built-in pattern
 rules, a sensitive-key set, JSON-aware redaction, and a low-allocation hot path.
 
 Everything below the "Recently shipped" section is a list of **ideas under consideration, not
@@ -33,6 +33,13 @@ These constrain everything below. An idea that conflicts with one of these is un
 
 ## Recently shipped
 
+- **Credit-card Luhn check and connection-string rule (0.3.0).** The credit-card rule now masks a
+  digit run only when it passes the Luhn checksum, so an order id or reference number of the same
+  length is no longer masked; a run it declines is not counted in telemetry. A new
+  `connection_string_secret` rule masks the value of a `Password=`, `Pwd=`, `AccountKey=`,
+  `SharedAccessKey=`, or `Secret=` pair while leaving the key and the rest of the connection string
+  readable. It runs first so a secret value is masked as a unit before any inner pattern can rewrite
+  it.
 - **JSON-aware redaction (0.2.0).** `RedactJson` walks a JSON document with `System.Text.Json`,
   redacting each string leaf in the context of the property that owns it: a sensitive key masks its
   value wholesale, any other string runs through the pattern rules. Structure is preserved, non-string
@@ -55,16 +62,15 @@ These constrain everything below. An idea that conflicts with one of these is un
 
 ### Next (0.3.x) - more built-in rules
 
-The built-in set today is email, IBAN, phone, credit card, and JWT. Each candidate below ships
-opt-in and needs a precision story (a real false-positive analysis) before it lands.
+The built-in set today is email, IBAN, phone, credit card (Luhn-checked), JWT, and connection-string
+secrets. Each candidate below ships opt-in and needs a precision story (a real false-positive
+analysis) before it lands.
 
-- **Credit-card refinement.** Add an optional Luhn check so the card rule rejects digit runs that
-  cannot be card numbers, cutting false positives on order ids and reference numbers.
 - **National identifiers.** Region-specific rules in the spirit of the existing `ssn` key (for
   example US SSN, UK NINO) grouped so a consumer opts into a region rather than the whole world.
-- **Auth headers and connection strings.** Generic `Bearer`/`Basic` authorization header values, and
-  the secret-bearing parts of common connection strings (`Password=`, `Pwd=`, `AccountKey=`),
-  masking the value while leaving the surrounding text readable.
+- **Auth headers.** Generic `Bearer`/`Basic` authorization header values, masking the credential
+  while leaving the scheme readable. (The connection-string secret part of this item shipped in
+  0.3.0.)
 - **IP addresses.** IPv4 and IPv6, opt-in, for teams that treat client addresses as personal data.
 
 ### Sensitive keys (0.3.x)
