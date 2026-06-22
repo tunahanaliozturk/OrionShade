@@ -103,6 +103,76 @@ public sealed class ConnectionStringSecretRuleTests
     }
 
     [Fact]
+    public void A_double_quoted_value_with_an_embedded_semicolon_is_masked_whole()
+    {
+        using var diag = new ShadeDiagnostics();
+        var redactor = Build(diag);
+
+        // ADO.NET expresses a value containing ';' by quoting it. The closing quote - not the inner
+        // ';' - terminates the value, so the whole secret must be masked. A naive '[^;]*' value would
+        // stop at the inner ';' and leave 'def"' (and the rest of the password) in the clear.
+        var result = redactor.Redact("Server=db;Password=\"abc;def\";Database=app");
+
+        Assert.DoesNotContain("abc", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("def", result, StringComparison.Ordinal);
+        Assert.Contains("Password=[REDACTED]", result, StringComparison.Ordinal);
+        Assert.Equal("Server=db;Password=[REDACTED];Database=app", result);
+    }
+
+    [Fact]
+    public void A_single_quoted_value_with_an_embedded_semicolon_is_masked_whole()
+    {
+        using var diag = new ShadeDiagnostics();
+        var redactor = Build(diag);
+
+        var result = redactor.Redact("Server=db;Password='abc;def';Database=app");
+
+        Assert.DoesNotContain("abc", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("def", result, StringComparison.Ordinal);
+        Assert.Contains("Password=[REDACTED]", result, StringComparison.Ordinal);
+        Assert.Equal("Server=db;Password=[REDACTED];Database=app", result);
+    }
+
+    [Fact]
+    public void A_plain_unquoted_value_runs_to_the_next_semicolon_and_the_tail_stays_readable()
+    {
+        using var diag = new ShadeDiagnostics();
+        var redactor = Build(diag);
+
+        var result = redactor.Redact("Server=db;Password=P@ssw0rd;Database=app");
+
+        Assert.DoesNotContain("P@ssw0rd", result, StringComparison.Ordinal);
+        Assert.Equal("Server=db;Password=[REDACTED];Database=app", result);
+    }
+
+    [Fact]
+    public void A_value_at_end_of_string_with_no_trailing_semicolon_is_masked_whole()
+    {
+        using var diag = new ShadeDiagnostics();
+        var redactor = Build(diag);
+
+        var result = redactor.Redact("Server=db;Password=P@ssw0rd!");
+
+        Assert.DoesNotContain("P@ssw0rd!", result, StringComparison.Ordinal);
+        Assert.Equal("Server=db;Password=[REDACTED]", result);
+    }
+
+    [Fact]
+    public void A_quoted_value_at_end_of_string_is_masked_whole_including_an_embedded_semicolon()
+    {
+        using var diag = new ShadeDiagnostics();
+        var redactor = Build(diag);
+
+        // The quoted run is terminated by its closing quote even when it sits at the very end of the
+        // text with no trailing delimiter, so the embedded ';' does not split the value.
+        var result = redactor.Redact("Server=db;Password=\"abc;def\"");
+
+        Assert.DoesNotContain("abc", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("def", result, StringComparison.Ordinal);
+        Assert.Equal("Server=db;Password=[REDACTED]", result);
+    }
+
+    [Fact]
     public void The_rule_carries_the_expected_name()
     {
         Assert.Equal("connection_string_secret", BuiltInRules.ConnectionStringSecret.Name);

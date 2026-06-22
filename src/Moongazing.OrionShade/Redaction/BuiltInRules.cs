@@ -39,9 +39,13 @@ public static partial class BuiltInRules
     /// <summary>
     /// Masks the secret value of a connection-string credential pair while leaving the key visible.
     /// Covers the common secret-bearing keys <c>Password</c>, <c>Pwd</c>, <c>AccountKey</c>,
-    /// <c>SharedAccessKey</c>, and <c>Secret</c>, matched case-insensitively. The value runs to the
-    /// next <c>;</c> delimiter or the end of the text, so the surrounding connection string stays
-    /// readable (for example <c>Server=db;Password=[REDACTED];Database=app</c>).
+    /// <c>SharedAccessKey</c>, and <c>Secret</c>, matched case-insensitively. The value is consumed as
+    /// a single unit following ADO.NET quoting: a double-quoted (<c>"..."</c>) or single-quoted
+    /// (<c>'...'</c>) run is terminated by its closing quote, and an unquoted run is terminated by the
+    /// next <c>;</c> delimiter or the end of the text. Because a value that itself contains a <c>;</c>
+    /// must be quoted in ADO.NET, the closing quote - not an inner <c>;</c> - ends the value, so the
+    /// whole secret is masked and no tail is left in the clear. The surrounding connection string
+    /// stays readable (for example <c>Server=db;Password=[REDACTED];Database=app</c>).
     /// </summary>
     public static RedactionRule ConnectionStringSecret { get; } =
         new("connection_string_secret", ConnectionStringSecretRegex(), MaskValueAfterEquals());
@@ -71,8 +75,9 @@ public static partial class BuiltInRules
     /// <summary>
     /// A mask for a captured <c>key=value</c> pair: keep everything up to and including the first
     /// <c>=</c> (the key and separator) and replace the value with the default token. The value's own
-    /// characters after the first <c>=</c> (for example base64 padding in an account key) are part of
-    /// the masked portion.
+    /// characters after the first <c>=</c> (for example base64 padding in an account key, or the
+    /// surrounding quotes of a quoted value) are part of the masked portion, so a quoted secret is
+    /// masked whole - opening quote, body, and closing quote alike.
     /// </summary>
     private static Func<string, string> MaskValueAfterEquals() => match =>
     {
@@ -102,7 +107,7 @@ public static partial class BuiltInRules
     private static partial Regex PhoneRegex();
 
     [GeneratedRegex(
-        @"\b(?:password|pwd|accountkey|sharedaccesskey|secret)\s*=\s*[^;]*",
+        @"\b(?:password|pwd|accountkey|sharedaccesskey|secret)\s*=\s*(?:""[^""]*""|'[^']*'|[^;]*)",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex ConnectionStringSecretRegex();
 }
