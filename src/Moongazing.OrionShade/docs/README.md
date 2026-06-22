@@ -25,7 +25,7 @@ dotnet add package OrionShade
 ## Quick start
 
 ```csharp
-builder.Services.AddOrionShade();   // built-in email, card, JWT rules + common sensitive keys
+builder.Services.AddOrionShade();   // built-in email, IBAN, phone, card, JWT, connection-string rules + common sensitive keys
 ```
 
 ```csharp
@@ -40,7 +40,7 @@ public sealed class OrderLogger(IRedactor redactor, ILogger<OrderLogger> logger)
 ```
 
 ```
-redactor.Redact("pay with 4111 1111 1111 1234")   // "pay with ************1234"
+redactor.Redact("pay with 4242 4242 4242 4242")   // "pay with ************4242"
 redactor.Redact("mail jane@acme.com")              // "mail [REDACTED]"
 redactor.RedactValue("password", "hunter2")        // "[REDACTED]"
 redactor.RedactValue("city", "jane@acme.com")      // "[REDACTED]"  (pattern still runs on the value)
@@ -51,8 +51,14 @@ redactor.RedactValue("city", "jane@acme.com")      // "[REDACTED]"  (pattern sti
 | Rule | Masks | Example result |
 |------|-------|----------------|
 | `email` | whole address | `[REDACTED]` |
-| `credit_card` | digit runs, keeping last 4 | `************1234` |
+| `iban` | whole account number | `[REDACTED]` |
+| `phone` | international number, keeping last 2 | `**********32` |
+| `credit_card` | Luhn-valid card runs, keeping last 4 | `************4242` |
 | `jwt` | whole token | `[REDACTED]` |
+| `connection_string_secret` | secret value of a `key=value` pair, keeping the key | `Password=[REDACTED]` |
+
+The credit-card rule only masks a digit run that passes the Luhn check, so an order id or reference
+number of the same length is left alone.
 
 Plus a default sensitive-key list: `password`, `secret`, `token`, `authorization`, `apikey`,
 `access_token`, `client_secret`, `ssn`, `card_number`, `cvv`, `pin`, and more.

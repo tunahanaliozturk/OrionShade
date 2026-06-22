@@ -67,7 +67,7 @@ public sealed class RedactFreeTextTests
         using var diag = new ShadeDiagnostics();
         var redactor = Build(diag);
 
-        var once = redactor.Redact("mail a@b.com and card 4111 1111 1111 1234");
+        var once = redactor.Redact("mail a@b.com and card 4242 4242 4242 4242");
         var twice = redactor.Redact(once);
 
         Assert.Equal(once, twice);
@@ -95,7 +95,7 @@ public sealed class RedactFreeTextTests
         var redactor = new Redactor(
             Array.Empty<RedactionRule>(), SensitiveKeyset.Default, Masks.Full(), diag);
 
-        const string text = "card 4111 1111 1111 1234 email a@b.com";
+        const string text = "card 4242 4242 4242 4242 email a@b.com";
         Assert.Equal(text, redactor.Redact(text));
     }
 }

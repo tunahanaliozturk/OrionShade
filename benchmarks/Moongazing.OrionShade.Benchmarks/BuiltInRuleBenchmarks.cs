@@ -16,7 +16,7 @@ using Moongazing.OrionShade.Redaction;
 public class BuiltInRuleBenchmarks
 {
     private const string EmailInput = "please reach jane@acme.com for billing questions";
-    private const string CardInput = "charged card 4111 1111 1111 1234 for the order";
+    private const string CardInput = "charged card 4242 4242 4242 4242 for the order";
     private const string JwtInput = "auth eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dBjftJeZ4CVPmB92K27uhbUJU1p1r";
 
     private static string Apply(RedactionRule rule, string input) =>

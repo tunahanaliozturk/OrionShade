@@ -32,8 +32,8 @@ conservative, aimed at catching obvious leaks on the logging hot path with predi
 Redaction happens two ways, and `RedactValue` decides between them by the key it is given.
 
 - **By pattern.** `Redact` runs every configured `RedactionRule` over free text, replacing each
-  regex match with a mask. The built-in rules cover email, IBAN, phone, card-like digit runs, and
-  JWTs.
+  regex match with a mask. The built-in rules cover email, IBAN, phone, Luhn-valid card numbers,
+  JWTs, and connection-string secrets.
 - **By key name.** `RedactValue(key, value)` first checks the `SensitiveKeyset`. If the key is
   sensitive (`password`, `authorization`, `ssn`, ...) the whole value is masked with the key mask.
   Otherwise the value falls through to the same pattern sweep as `Redact`.
@@ -67,7 +67,9 @@ can see what is being caught and how often.
   key name, and structure-preserving redaction of a JSON document, all exposed through a single
   `IRedactor`.
 - **Source-generated built-in rules.** Email, IBAN, phone (keeps the last two digits), credit card
-  (keeps the last four digits), and JWT, compiled at build time via `[GeneratedRegex]`, not at
+  (keeps the last four digits, masked only when the run passes the Luhn check), JWT, and
+  connection-string secrets (`Password=`, `Pwd=`, `AccountKey=`, `SharedAccessKey=`, `Secret=`,
+  masking the value while keeping the key), compiled at build time via `[GeneratedRegex]`, not at
   runtime. Phone is matched before credit card so a `+`-prefixed international number redacts as a
   phone rather than being partially consumed as a card.
 - **JSON-aware redaction.** `RedactJson` walks a JSON document with `System.Text.Json`, redacting
@@ -101,11 +103,11 @@ dotnet add package OrionShade
 
 ## Quick start
 
-Register OrionShade with the built-in defaults (email, IBAN, phone, card, and JWT patterns plus the
-common sensitive keys):
+Register OrionShade with the built-in defaults (email, IBAN, phone, card, JWT, and connection-string
+patterns plus the common sensitive keys):
 
 ```csharp
-builder.Services.AddOrionShade();   // built-in email, IBAN, phone, card, JWT rules + common sensitive keys
+builder.Services.AddOrionShade();   // built-in email, IBAN, phone, card, JWT, connection-string rules + common sensitive keys
 ```
 
 Inject `IRedactor` and scrub before you log:
@@ -126,11 +128,12 @@ public sealed class OrderLogger(IRedactor redactor, ILogger<OrderLogger> logger)
 What the two methods do:
 
 ```csharp
-redactor.Redact("pay with 4111 1111 1111 1234");  // "pay with ************1234"
+redactor.Redact("pay with 4242 4242 4242 4242");  // "pay with ************4242"
 redactor.Redact("mail jane@acme.com");             // "mail [REDACTED]"
 redactor.RedactValue("password", "hunter2");       // "[REDACTED]"  (key is sensitive)
 redactor.RedactValue("city", "jane@acme.com");     // "[REDACTED]"  (pattern still runs on the value)
 redactor.Redact("the quick brown fox");            // unchanged when nothing matches
+redactor.Redact("order 1234 5678 9012 3456");      // unchanged: fails the Luhn check, not a card
 ```
 
 ---
@@ -140,17 +143,24 @@ redactor.Redact("the quick brown fox");            // unchanged when nothing mat
 ### Pattern rules
 
 `Redact` applies every configured rule to free text in order and masks each match. With the
-defaults, that means email, IBAN, phone, credit card, and JWT:
+defaults, that means email, IBAN, phone, credit card, JWT, and connection-string secrets:
 
 ```csharp
-redactor.Redact("contact jane@acme.com about card 4111 1111 1111 1234");
-// "contact [REDACTED] about card ************1234"
+redactor.Redact("contact jane@acme.com about card 4242 4242 4242 4242");
+// "contact [REDACTED] about card ************4242"
+
+redactor.Redact("ConnectionString: Server=db;Password=P@ssw0rd!;Database=app");
+// "ConnectionString: Server=db;Password=[REDACTED];Database=app"
 ```
 
 The credit-card rule keeps the last four digits and the phone rule keeps the last two; email, IBAN,
-and JWT are masked whole. The IBAN and phone rules run before the credit-card rule, so a
-`+`-prefixed international number is claimed by the phone rule (keeping its last two digits) instead
-of being partially consumed as a card, and an IBAN is masked whole by its country-code prefix.
+and JWT are masked whole. The credit-card rule masks a digit run only when it passes the Luhn check,
+so an order id or reference number of the same length is left alone. The connection-string rule
+masks the value of a `Password=`, `Pwd=`, `AccountKey=`, `SharedAccessKey=`, or `Secret=` pair while
+keeping the key and the rest of the string readable. The IBAN and phone rules run before the
+credit-card rule, so a `+`-prefixed international number is claimed by the phone rule (keeping its
+last two digits) instead of being partially consumed as a card, and an IBAN is masked whole by its
+country-code prefix.
 
 ### The sensitive key set
 
@@ -252,7 +262,7 @@ configuration delegate you declare exactly what runs.
 
 | `OrionShadeBuilder` member | Effect |
 |----------------------------|--------|
-| `UseDefaults()` | Add the built-in rules (email, card, JWT) and the default sensitive keys. |
+| `UseDefaults()` | Add the built-in rules (email, IBAN, phone, card, JWT, connection-string secrets) and the default sensitive keys. |
 | `AddRule(name, Regex, mask?)` | Add a pattern rule from a compiled regex. Mask defaults to `Masks.Full()`. |
 | `AddRule(name, string, mask?)` | Add a pattern rule from a regex string (compiled `IgnoreCase` + `CultureInvariant`). |
 | `AddSensitiveKeys(params string[])` | Mark key names whose values are masked wholesale. |
@@ -270,7 +280,7 @@ OrionShade exposes a `System.Diagnostics.Metrics.Meter` named `Moongazing.OrionS
 
 | Instrument | Type | Tag | Meaning |
 |------------|------|-----|---------|
-| `orionshade.redactions` | `Counter<long>` | `rule` | One per redaction. The tag is the pattern name (for example `email`, `iban`, `phone`, `credit_card`, `jwt`) or `sensitive_key` for a key-based mask. |
+| `orionshade.redactions` | `Counter<long>` | `rule` | One per redaction. The tag is the pattern name (for example `email`, `iban`, `phone`, `credit_card`, `jwt`, `connection_string_secret`) or `sensitive_key` for a key-based mask. |
 
 Wire it into OpenTelemetry by subscribing to the meter:
 
@@ -313,7 +323,7 @@ hardware-dependent and meant to be produced on the machine you care about.
 ## Versioning
 
 OrionShade follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Notable changes are
-recorded in [CHANGELOG.md](CHANGELOG.md). The current release is `0.2.0`; while the package is
+recorded in [CHANGELOG.md](CHANGELOG.md). The current release is `0.3.0`; while the package is
 pre-1.0, minor versions may still adjust the public surface.
 
 ---

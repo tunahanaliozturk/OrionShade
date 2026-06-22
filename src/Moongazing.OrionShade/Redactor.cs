@@ -61,8 +61,20 @@ public sealed class Redactor : IRedactor
 
             result = rule.Pattern.Replace(result, match =>
             {
+                var masked = rule.Mask(match.Value);
+
+                // A mask may decline a match by returning the matched text unchanged: a value-gated
+                // rule (for example the credit-card rule rejecting a digit run that fails the Luhn
+                // check) matches a candidate with its pattern but leaves non-qualifying text alone.
+                // Only count a redaction that actually changed the value, so telemetry reflects what
+                // was masked rather than what was merely examined.
+                if (string.Equals(masked, match.Value, StringComparison.Ordinal))
+                {
+                    return match.Value;
+                }
+
                 diagnostics.Record(rule.Name);
-                return rule.Mask(match.Value);
+                return masked;
             });
         }
 
