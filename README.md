@@ -88,6 +88,9 @@ can see what is being caught and how often.
   formatted message of every log entry before it reaches a sink, built only on
   `Microsoft.Extensions.Logging.Abstractions`. Per-category rule sets let different loggers run
   different rules from the same registration.
+- **Serilog integration.** The `OrionShade.Serilog` add-on package redacts Serilog log events before
+  any sink sees them: `WriteTo.OrionShadeRedaction(...)` scrubs the message, properties, and exception
+  through a sink wrapper, and `Enrich.WithOrionShadeRedaction(...)` scrubs string properties.
 - **Built-in telemetry.** A `System.Diagnostics.Metrics` meter with a rule-tagged redaction counter,
   ready for any OpenTelemetry exporter.
 - **Multi-targeted.** `net8.0`, `net9.0`, and `net10.0`, nullable enabled, warnings as errors.
@@ -278,8 +281,37 @@ builder.Logging.AddOrionShadeRedaction(options => options
 
 `OrionShadeBuilder.Build()` produces a standalone `IRedactor` from a builder configuration for use
 here; pass the shared registered `ShadeDiagnostics` to `Build(diagnostics)` to keep all redaction on
-one meter. The Serilog enricher remains planned as a separate package, since it needs a Serilog
-dependency that does not belong in the core.
+one meter.
+
+### Serilog
+
+For Serilog, the `OrionShade.Serilog` package redacts log events before they reach any sink. It
+depends on Serilog and reuses the core redactor, so it ships separately from the core. The complete
+seam is a sink wrapper: it rebuilds each event, scrubbing the rendered message (both literal template
+text and property-bound values), the string property values, and the exception text:
+
+```csharp
+using Moongazing.OrionShade;
+using Moongazing.OrionShade.Serilog;
+
+var redactor = new OrionShadeBuilder().UseDefaults().Build();
+
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.OrionShadeRedaction(redactor, w => w.Console())   // wraps the Console sink
+    .CreateLogger();
+```
+
+For the common structured-logging case, where PII reaches the log through a property, a lighter
+enricher seam scrubs string property values in place (and so the rendered message wherever a property
+carried the secret). An enricher cannot reach a literal in the template or the exception, so use the
+sink wrapper above when those matter:
+
+```csharp
+Log.Logger = new LoggerConfiguration()
+    .Enrich.WithOrionShadeRedaction(redactor)
+    .WriteTo.Console()
+    .CreateLogger();
+```
 
 ### Mask strategies
 

@@ -6,6 +6,30 @@ All notable changes to OrionShade are documented in this file. The format is bas
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-06-28
+
+### Added
+
+A new package, **`OrionShade.Serilog`** (`Moongazing.OrionShade.Serilog`), that applies OrionShade
+redaction inside a Serilog pipeline so log events are scrubbed before they reach any sink. It depends
+on `Serilog` and reuses the core `IRedactor`; the masking itself is not reimplemented. The core takes
+no new dependency.
+
+- `WriteTo.OrionShadeRedaction(redactor, configure)`: a sink wrapper, the complete seam. It rebuilds
+  each `LogEvent` before the wrapped sinks see it, redacting the rendered message (both literal text
+  in the message template and values bound through properties), every string-typed scalar property
+  value (in the context of its property name, so a sensitive key masks its value wholesale), and the
+  exception text (reusing the core's `RedactedException`, so the type name and stack frames survive).
+  A second overload wraps an already-constructed `ILogEventSink` instance. Non-string scalars and
+  non-scalar values (structures, sequences, dictionaries) are left untouched.
+- `Enrich.WithOrionShadeRedaction(redactor)`: a lighter-weight enricher seam that redacts string
+  scalar property values in place. Because the rendered message binds its placeholders to these
+  values, this also scrubs the message wherever a secret reached it through a property. An enricher
+  can only touch the mutable property collection, so a secret written as a literal in the template, or
+  carried in an exception, needs the sink wrapper above; this is documented on both APIs.
+- A new `InternalsVisibleTo` on the core so the Serilog add-on can reuse `RedactedException` rather
+  than reimplementing exception-text redaction. No public surface of the core changes.
+
 ## [0.4.0] - 2026-06-28
 
 ### Added
@@ -113,6 +137,7 @@ Initial release. Sensitive-data redaction.
 17 tests across the masks, the redactor (email, card, JWT, clean text, sensitive keys, custom
 rule), the keyset, and registration.
 
+[0.5.0]: https://github.com/tunahanaliozturk/OrionShade/releases/tag/v0.5.0
 [0.4.0]: https://github.com/tunahanaliozturk/OrionShade/releases/tag/v0.4.0
 [0.3.0]: https://github.com/tunahanaliozturk/OrionShade/releases/tag/v0.3.0
 [0.2.1]: https://github.com/tunahanaliozturk/OrionShade/releases/tag/v0.2.1
