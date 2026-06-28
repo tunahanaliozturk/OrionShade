@@ -11,11 +11,15 @@ using Microsoft.Extensions.Logging;
 /// <remarks>
 /// The integration is built only on <c>Microsoft.Extensions.Logging.Abstractions</c>. It works by
 /// decorating each registered <see cref="ILoggerProvider"/> so the logger handed to a sink is a
-/// <see cref="RedactingLogger"/>. Decoration is applied to the <see cref="ILoggerProvider"/> service
-/// descriptors present when the method is called, so register your sink providers first and call this
-/// last (for example after the <c>AddConsole</c> / <c>AddProvider</c> calls). A provider added after
-/// this call is not wrapped. Calling it has no effect on logging until at least one redactor is
-/// configured; a category that resolves to no redactor is logged unchanged.
+/// <see cref="RedactingLogger"/>, redacting both the formatted message and any logged exception.
+/// Decoration is applied to the <see cref="ILoggerProvider"/> service descriptors present when the
+/// method is called, so register your sink providers first and call this last (for example after the
+/// <c>AddConsole</c> / <c>AddProvider</c> calls). A provider added after this call is not wrapped.
+/// Calling it has no effect on logging until at least one redactor is configured; a category that
+/// resolves to no redactor is logged unchanged. Registration is idempotent, so calling it more than
+/// once still applies a single redaction layer. The decorator preserves the inner provider's filter
+/// identity (its <c>ProviderAlias</c>) and forwards external scope, so per-provider log-level filters
+/// and scopes keep working.
 /// </remarks>
 public static class OrionShadeLoggingBuilderExtensions
 {
@@ -63,10 +67,23 @@ public static class OrionShadeLoggingBuilderExtensions
     /// Replace each registered <see cref="ILoggerProvider"/> descriptor with one that resolves the
     /// original instance and wraps it in a <see cref="RedactingLoggerProvider"/>. The original
     /// implementation factory or type is preserved, so the concrete provider is still constructed
-    /// exactly as registered; only the public service is the decorator.
+    /// exactly as registered; only the public service is the decorator. The decorator re-stamps the
+    /// inner provider's <c>[ProviderAlias]</c> so per-provider log-level filters still resolve.
+    /// Decoration is idempotent: a marker registered on first use makes a repeated call a no-op, so
+    /// redaction is applied exactly once however many times the integration is registered against the
+    /// same service collection.
     /// </summary>
     private static void DecorateLoggerProviders(IServiceCollection services, LogRedactionOptions options)
     {
+        if (services.Any(static d => d.ServiceType == typeof(RedactionDecorationMarker)))
+        {
+            // A prior AddOrionShadeRedaction call already wrapped the providers present at that time.
+            // Wrapping again would stack decorators and redact twice, degrading output; do nothing.
+            return;
+        }
+
+        services.Add(ServiceDescriptor.Singleton(new RedactionDecorationMarker()));
+
         for (var i = 0; i < services.Count; i++)
         {
             var descriptor = services[i];
@@ -75,18 +92,24 @@ public static class OrionShadeLoggingBuilderExtensions
                 continue;
             }
 
-            if (descriptor.ImplementationType == typeof(RedactingLoggerProvider))
-            {
-                // Already decorated by a prior call; do not stack wrappers.
-                continue;
-            }
-
+            var capturedDescriptor = descriptor;
             services[i] = ServiceDescriptor.Describe(
                 typeof(ILoggerProvider),
-                provider => new RedactingLoggerProvider(ResolveInner(provider, descriptor), options),
+                provider =>
+                {
+                    var inner = ResolveInner(provider, capturedDescriptor);
+                    var redacting = new RedactingLoggerProvider(inner, options);
+                    return ProviderAliasForwarder.WithForwardedAlias(redacting, inner);
+                },
                 descriptor.Lifetime);
         }
     }
+
+    /// <summary>
+    /// A marker service registered the first time redaction decoration is applied to a service
+    /// collection, so a later call can detect the prior decoration and stay idempotent.
+    /// </summary>
+    private sealed class RedactionDecorationMarker;
 
     /// <summary>
     /// Materialise the inner provider a descriptor describes, whether it was registered as an
