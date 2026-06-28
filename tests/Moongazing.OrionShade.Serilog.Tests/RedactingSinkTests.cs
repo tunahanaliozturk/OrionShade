@@ -14,6 +14,8 @@ using Xunit;
 public sealed class RedactingSinkTests
 {
     private static readonly IRedactor Redactor = new OrionShadeBuilder().UseDefaults().Build();
+    private static readonly string[] Recipients = { "heidi@example.com", "ivan@example.com" };
+    private static readonly string[] ExpectedAccountPropertyNames = { "Email", "Age" };
 
     private static (ILogger Logger, CapturingSink Sink) BuildLogger()
     {
@@ -118,5 +120,65 @@ public sealed class RedactingSinkTests
 
         Assert.Equal("Job \"nightly-sync\" completed in 1200ms", sink.LastMessage);
         Assert.Equal("nightly-sync", Assert.IsType<ScalarValue>(sink.Last.Properties["JobId"]).Value);
+    }
+
+    [Fact]
+    public void redacts_pii_inside_a_destructured_object_property()
+    {
+        var (logger, sink) = BuildLogger();
+
+        // The @ operator destructures the object into a StructureValue whose Email property carries PII.
+        logger.Information("Signup {@User}", new { Name = "Grace", Email = "grace@example.com" });
+
+        var structure = Assert.IsType<StructureValue>(sink.Last.Properties["User"]);
+        var email = structure.Properties.Single(p => p.Name == "Email");
+        Assert.Equal("[REDACTED]", Assert.IsType<ScalarValue>(email.Value).Value);
+        Assert.DoesNotContain("grace@example.com", sink.LastMessage, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void redacts_pii_inside_a_list_element()
+    {
+        var (logger, sink) = BuildLogger();
+
+        // Box the array as a single positional argument so Serilog binds it to {Recipients} as one
+        // SequenceValue, rather than spreading it across the params array.
+        logger.Information("Recipients {Recipients}", (object)Recipients);
+
+        var sequence = Assert.IsType<SequenceValue>(sink.Last.Properties["Recipients"]);
+        Assert.All(sequence.Elements, e => Assert.Equal("[REDACTED]", Assert.IsType<ScalarValue>(e).Value));
+        Assert.DoesNotContain("heidi@example.com", sink.LastMessage, StringComparison.Ordinal);
+        Assert.DoesNotContain("ivan@example.com", sink.LastMessage, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void redacts_pii_inside_a_dictionary_value()
+    {
+        var (logger, sink) = BuildLogger();
+
+        // A dictionary destructures into a DictionaryValue; the PII rides in the value, keyed by "primary".
+        logger.Information(
+            "Contacts {@Contacts}",
+            new Dictionary<string, string> { ["primary"] = "judy@example.com" });
+
+        var dictionary = Assert.IsType<DictionaryValue>(sink.Last.Properties["Contacts"]);
+        var entry = dictionary.Elements.Single(e => (string?)e.Key.Value == "primary");
+        Assert.Equal("[REDACTED]", Assert.IsType<ScalarValue>(entry.Value).Value);
+        Assert.DoesNotContain("judy@example.com", sink.LastMessage, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void preserves_a_non_string_scalar_and_the_structure_shape()
+    {
+        var (logger, sink) = BuildLogger();
+
+        // A nested non-string scalar is left untouched and the destructured shape (type tag, property
+        // names, order) is rebuilt unchanged even when a sibling string is redacted.
+        logger.Information("Account {@Account}", new { Email = "mallory@example.com", Age = 42 });
+
+        var structure = Assert.IsType<StructureValue>(sink.Last.Properties["Account"]);
+        Assert.Equal(ExpectedAccountPropertyNames, structure.Properties.Select(p => p.Name).ToArray());
+        Assert.Equal("[REDACTED]", Assert.IsType<ScalarValue>(structure.Properties[0].Value).Value);
+        Assert.Equal(42, Assert.IsType<ScalarValue>(structure.Properties[1].Value).Value);
     }
 }
