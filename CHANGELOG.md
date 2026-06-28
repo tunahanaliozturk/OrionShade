@@ -6,6 +6,35 @@ All notable changes to OrionShade are documented in this file. The format is bas
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-06-28
+
+### Added
+
+A `Microsoft.Extensions.Logging` redaction integration in the core package, plus per-logger rule
+sets. The integration is built only on `Microsoft.Extensions.Logging.Abstractions`, so the core
+takes one more abstractions-only dependency and no concrete sink.
+
+- `ILoggingBuilder.AddOrionShadeRedaction(...)`: folds OrionShade redaction into the
+  `Microsoft.Extensions.Logging` pipeline. Each registered `ILoggerProvider` is decorated so the
+  formatted message of every log entry is scrubbed before it reaches any sink. The structured state
+  is forwarded to the inner logger untouched; only the rendered text is redacted. Register your sink
+  providers first and call this last, as decoration is applied to the `ILoggerProvider` descriptors
+  present at call time. With no redactor configured the integration is inert, so existing logging is
+  unchanged until you opt in.
+- `LogRedactionOptions` with `RedactCategory(prefix, redactor)` and a `DefaultRedactor`: different
+  log categories can run different rule and key sets from a single registration (for example an
+  audited category masks emails while a diagnostics category does not). A category is matched to a
+  redactor by the longest registered prefix it starts with, falling back to the default; a category
+  that resolves to no redactor is logged unchanged.
+- `OrionShadeBuilder.Build(ShadeDiagnostics?)`: builds a standalone `IRedactor` from a builder
+  configuration without registering it in a container, for composing the named rule sets passed to
+  `RedactCategory`. Pass the shared registered `ShadeDiagnostics` to keep all redaction on one meter.
+
+### Deferred
+
+- The **Serilog enricher / destructuring policy** still ships as a separate package (it needs a
+  Serilog dependency, which does not belong in the core). It remains planned; see the roadmap.
+
 ## [0.3.0] - 2026-06-22
 
 ### Added
@@ -84,6 +113,7 @@ Initial release. Sensitive-data redaction.
 17 tests across the masks, the redactor (email, card, JWT, clean text, sensitive keys, custom
 rule), the keyset, and registration.
 
+[0.4.0]: https://github.com/tunahanaliozturk/OrionShade/releases/tag/v0.4.0
 [0.3.0]: https://github.com/tunahanaliozturk/OrionShade/releases/tag/v0.3.0
 [0.2.1]: https://github.com/tunahanaliozturk/OrionShade/releases/tag/v0.2.1
 [0.2.0]: https://github.com/tunahanaliozturk/OrionShade/releases/tag/v0.2.0

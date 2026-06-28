@@ -2,6 +2,7 @@ namespace Moongazing.OrionShade;
 
 using System.Text.RegularExpressions;
 
+using Moongazing.OrionShade.Diagnostics;
 using Moongazing.OrionShade.Redaction;
 
 /// <summary>
@@ -61,6 +62,18 @@ public sealed class OrionShadeBuilder
         keyMask = mask;
         return this;
     }
+
+    /// <summary>
+    /// Build a standalone <see cref="IRedactor"/> from this configuration, without registering it in a
+    /// service container. Useful for composing a named rule set to apply to a specific log category
+    /// through <see cref="Logging.LogRedactionOptions.RedactCategory"/>.
+    /// </summary>
+    /// <param name="diagnostics">
+    /// The metrics instance the redactor records to. When null a private <see cref="ShadeDiagnostics"/>
+    /// is created; pass the shared registered instance to keep all redaction on one meter.
+    /// </param>
+    public IRedactor Build(ShadeDiagnostics? diagnostics = null) =>
+        new Redactor(BuildRules(), BuildKeyset(), KeyMask, diagnostics ?? new ShadeDiagnostics());
 
     internal IReadOnlyList<RedactionRule> BuildRules() => rules.ToArray();
 

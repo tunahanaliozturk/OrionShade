@@ -84,6 +84,10 @@ can see what is being caught and how often.
   with its own mask.
 - **First-class DI.** One `AddOrionShade()` call registers the redactor and diagnostics; defaults
   are applied when you pass no configuration.
+- **Logging pipeline integration.** `ILoggingBuilder.AddOrionShadeRedaction(...)` redacts the
+  formatted message of every log entry before it reaches a sink, built only on
+  `Microsoft.Extensions.Logging.Abstractions`. Per-category rule sets let different loggers run
+  different rules from the same registration.
 - **Built-in telemetry.** A `System.Diagnostics.Metrics` meter with a rule-tagged redaction counter,
   ready for any OpenTelemetry exporter.
 - **Multi-targeted.** `net8.0`, `net9.0`, and `net10.0`, nullable enabled, warnings as errors.
@@ -232,6 +236,51 @@ var safe = redactor.RedactJson(json);
 When the input is not valid JSON, `RedactJson` treats the whole string as free text and runs it
 through `Redact` instead, so it is always safe to call on a value that may or may not be JSON.
 
+### Logging pipeline integration
+
+Rather than calling the redactor at each log site, fold it into the `Microsoft.Extensions.Logging`
+pipeline so every log entry is scrubbed before it reaches a sink. The integration lives in the core
+package and is built only on `Microsoft.Extensions.Logging.Abstractions`, so it adds no concrete sink
+dependency. Register your sink providers first and call `AddOrionShadeRedaction` last, because it
+decorates the `ILoggerProvider` registrations present at that point:
+
+```csharp
+using Moongazing.OrionShade;
+using Moongazing.OrionShade.Logging;
+
+var redactor = new OrionShadeBuilder().UseDefaults().Build();
+
+builder.Logging.AddOrionShadeRedaction(redactor);   // one rule set for every category
+```
+
+The decorator substitutes the formatter so the rendered message is redacted, while the structured
+state and scopes reach the inner logger unchanged. The integration is additive and opt-in: a pipeline
+that never calls `AddOrionShadeRedaction`, or one configured with no redactor, logs exactly as
+before.
+
+Different categories can run different rule and key sets from a single registration. A category is
+matched to a redactor by the longest registered prefix it starts with, falling back to an optional
+`DefaultRedactor`; a category that matches nothing is logged unchanged:
+
+```csharp
+var audited = new OrionShadeBuilder().UseDefaults().Build();
+var diagnostics = new OrionShadeBuilder()
+    .AddRule("ticket", @"TICKET-\d+", Masks.Full("[TICKET]"))
+    .Build();
+
+builder.Logging.AddOrionShadeRedaction(options => options
+    .DefaultRedactor = audited);                 // applied to any category no prefix claims
+
+builder.Logging.AddOrionShadeRedaction(options => options
+    .RedactCategory("Audit.", audited)           // audited categories mask emails, cards, ...
+    .RedactCategory("Diag.", diagnostics));      // diagnostics categories only mask the ticket id
+```
+
+`OrionShadeBuilder.Build()` produces a standalone `IRedactor` from a builder configuration for use
+here; pass the shared registered `ShadeDiagnostics` to `Build(diagnostics)` to keep all redaction on
+one meter. The Serilog enricher remains planned as a separate package, since it needs a Serilog
+dependency that does not belong in the core.
+
 ### Mask strategies
 
 A mask is a `Func<string, string>` that takes the matched text and returns its replacement. The
@@ -323,7 +372,7 @@ hardware-dependent and meant to be produced on the machine you care about.
 ## Versioning
 
 OrionShade follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Notable changes are
-recorded in [CHANGELOG.md](CHANGELOG.md). The current release is `0.3.0`; while the package is
+recorded in [CHANGELOG.md](CHANGELOG.md). The current release is `0.4.0`; while the package is
 pre-1.0, minor versions may still adjust the public surface.
 
 ---

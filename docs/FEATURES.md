@@ -15,8 +15,9 @@ A complete reference for what OrionShade ships today. Every entry below maps to 
 5. [Mask strategies](#5-mask-strategies)
 6. [Custom rules](#6-custom-rules)
 7. [Dependency injection](#7-dependency-injection)
-8. [Telemetry](#8-telemetry)
-9. [Targets and build settings](#9-targets-and-build-settings)
+8. [Logging pipeline integration](#8-logging-pipeline-integration)
+9. [Telemetry](#9-telemetry)
+10. [Targets and build settings](#10-targets-and-build-settings)
 
 ---
 
@@ -178,7 +179,47 @@ public static IServiceCollection AddOrionShade(
 
 ---
 
-## 8. Telemetry
+## 8. Logging pipeline integration
+
+OrionShade can redact inside the `Microsoft.Extensions.Logging` pipeline so a log entry is scrubbed
+before it reaches a sink, rather than at each call site. The integration lives in the core package
+and is built only on `Microsoft.Extensions.Logging.Abstractions`, so it adds no concrete sink
+dependency.
+
+```csharp
+public static class OrionShadeLoggingBuilderExtensions
+{
+    public static ILoggingBuilder AddOrionShadeRedaction(this ILoggingBuilder builder, IRedactor redactor);
+    public static ILoggingBuilder AddOrionShadeRedaction(this ILoggingBuilder builder, Action<LogRedactionOptions>? configure = null);
+}
+
+public sealed class LogRedactionOptions
+{
+    public IRedactor? DefaultRedactor { get; set; }
+    public IReadOnlyList<CategoryRedactor> CategoryRedactors { get; }
+    public LogRedactionOptions RedactCategory(string categoryPrefix, IRedactor redactor);
+    public IRedactor? ResolveFor(string categoryName);
+}
+```
+
+- Each registered `ILoggerProvider` is decorated so the logger it hands to a sink is a redacting
+  wrapper. The wrapper substitutes the message formatter, so only the rendered text is redacted; the
+  structured state and scopes reach the inner logger unchanged.
+- Decoration is applied to the `ILoggerProvider` registrations present when `AddOrionShadeRedaction`
+  is called, so register your sink providers first and call this last. A provider added afterward is
+  not wrapped.
+- A category is matched to a redactor by the longest registered prefix it starts with (ordinal),
+  falling back to `DefaultRedactor`. A category that resolves to no redactor is logged unchanged, as
+  is a pipeline that never opts in, so the integration is additive.
+- Build a standalone `IRedactor` for a category with `OrionShadeBuilder.Build(ShadeDiagnostics?)`;
+  pass the shared registered `ShadeDiagnostics` to keep all redaction on one meter.
+
+A Serilog enricher is planned as a separate package, since it needs a Serilog dependency that does
+not belong in the core.
+
+---
+
+## 9. Telemetry
 
 `ShadeDiagnostics` owns a `System.Diagnostics.Metrics.Meter` named `Moongazing.OrionShade`
 (`ShadeDiagnostics.MeterName`).
@@ -193,10 +234,12 @@ capturing the redacted values.
 
 ---
 
-## 9. Targets and build settings
+## 10. Targets and build settings
 
 - Multi-targets `net8.0`, `net9.0`, and `net10.0`.
 - Nullable reference types enabled; implicit usings enabled.
 - `TreatWarningsAsErrors`, `EnforceCodeStyleInBuild`, latest-recommended analysis level.
 - XML documentation generated for the public API.
-- One runtime dependency: `Microsoft.Extensions.DependencyInjection.Abstractions`.
+- Two abstractions-only runtime dependencies:
+  `Microsoft.Extensions.DependencyInjection.Abstractions` and
+  `Microsoft.Extensions.Logging.Abstractions`. Neither pulls in a concrete sink.
