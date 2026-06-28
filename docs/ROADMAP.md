@@ -2,8 +2,9 @@
 
 Where OrionShade might go, and how you can help shape it.
 
-The current release is **0.3.0**: rule-based redaction for the logging path, with built-in pattern
-rules, a sensitive-key set, JSON-aware redaction, and a low-allocation hot path.
+The current release is **0.4.0**: rule-based redaction for the logging path, with built-in pattern
+rules, a sensitive-key set, JSON-aware redaction, a low-allocation hot path, and a
+`Microsoft.Extensions.Logging` integration with per-category rule sets.
 
 Everything below the "Recently shipped" section is a list of **ideas under consideration, not
 promises**. The version milestones are a rough ordering, not committed dates, and items move, merge,
@@ -33,6 +34,17 @@ These constrain everything below. An idea that conflicts with one of these is un
 
 ## Recently shipped
 
+- **`Microsoft.Extensions.Logging` redaction and per-logger rule sets (0.4.0).**
+  `ILoggingBuilder.AddOrionShadeRedaction(...)` folds redaction into the MEL pipeline: each
+  registered `ILoggerProvider` is decorated so the formatted message is scrubbed before it reaches a
+  sink, applied at the pipeline rather than each call site. It is built only on
+  `Microsoft.Extensions.Logging.Abstractions`, so it lives in the core without pulling in a concrete
+  sink. `LogRedactionOptions.RedactCategory(prefix, redactor)` lets different categories run
+  different rule and key sets from one registration (longest matching prefix wins, with a default
+  fallback), so a verbose debug logger and an audited logger can redact differently. A category that
+  resolves to no redactor, or a pipeline that never opts in, is logged unchanged. The Serilog
+  enricher is still planned as a separate package; it needs a Serilog dependency that does not belong
+  in the core.
 - **Credit-card Luhn check and connection-string rule (0.3.0).** The credit-card rule now masks a
   digit run only when it passes the Luhn checksum, so an order id or reference number of the same
   length is no longer masked; a run it declines is not counted in telemetry. A new
@@ -85,13 +97,16 @@ analysis) before it lands.
 
 ### Integrations (0.4.x)
 
-- **`Microsoft.Extensions.Logging` enricher.** An `ILogger`-side hook that runs redaction over the
-  message and its arguments as part of the logging pipeline rather than at each call site. Ships as a
-  separate `OrionShade.Extensions.Logging` package to keep the core dependency-light.
-- **Serilog enricher / destructuring policy.** The equivalent for Serilog, scrubbing properties as
-  they are bound, in its own add-on package.
-- **Configurable rule sets per sink.** Allow a named redactor configuration so a verbose debug sink
-  and an audited sink can run different rule and key sets from the same registration.
+- **`Microsoft.Extensions.Logging` integration (shipped in 0.4.0).** Runs redaction over the
+  formatted message as part of the logging pipeline rather than at each call site. It landed in the
+  core package built only on `Microsoft.Extensions.Logging.Abstractions`, rather than as a separate
+  package, since an abstractions-only dependency keeps the core light without a concrete sink.
+- **Configurable rule sets per sink (shipped in 0.4.0).** `LogRedactionOptions.RedactCategory` gives
+  a named redactor per category prefix, so a verbose debug logger and an audited logger run different
+  rule and key sets from the same registration.
+- **Serilog enricher / destructuring policy (still planned).** The equivalent for Serilog, scrubbing
+  properties as they are bound, in its own add-on package. It needs a Serilog dependency, so it
+  stays out of the core and ships separately.
 
 ### Redaction surface (later)
 

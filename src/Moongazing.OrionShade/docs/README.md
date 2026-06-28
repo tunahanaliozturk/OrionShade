@@ -76,6 +76,30 @@ builder.Services.AddOrionShade(shade => shade
 A `Mask` is just a `Func<string,string>`: use `Masks.Full()`, `Masks.Full("token")`, or
 `Masks.KeepLast(n)`, or write your own.
 
+## Logging pipeline
+
+Redact in the `Microsoft.Extensions.Logging` pipeline instead of at each call site, built only on
+`Microsoft.Extensions.Logging.Abstractions`. Register your sink providers first and call this last:
+
+```csharp
+var redactor = new OrionShadeBuilder().UseDefaults().Build();
+
+builder.Logging.AddOrionShadeRedaction(redactor);   // every category, one rule set
+```
+
+Different categories can run different rule sets from one registration (longest matching prefix
+wins, with an optional default):
+
+```csharp
+builder.Logging.AddOrionShadeRedaction(options => options
+    .RedactCategory("Audit.", new OrionShadeBuilder().UseDefaults().Build())
+    .RedactCategory("Diag.",  new OrionShadeBuilder().AddRule("ticket", @"TICKET-\d+", Masks.Full("[TICKET]")).Build()));
+```
+
+The formatted message is scrubbed before any sink writes it; structured state reaches the inner
+logger unchanged. With no redactor configured the integration is inert, so logging is unchanged until
+you opt in. A Serilog enricher is planned as a separate package.
+
 ## Telemetry
 
 Subscribe to the `Moongazing.OrionShade` meter: `orionshade.redactions` is tagged `rule` (the
