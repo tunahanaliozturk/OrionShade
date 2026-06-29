@@ -11,5 +11,7 @@
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Moongazing.OrionShade.Tests" />
+    <!-- The Serilog add-on reuses RedactedException to scrub exception text rather than reimplementing it. -->
+    <InternalsVisibleTo Include="Moongazing.OrionShade.Serilog" />
   </ItemGroup>
 </Project>

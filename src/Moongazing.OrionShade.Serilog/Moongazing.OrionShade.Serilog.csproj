@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>OrionShade.Serilog</PackageId>
+    <RootNamespace>Moongazing.OrionShade.Serilog</RootNamespace>
+    <Description>Serilog redaction for OrionShade: scrub secrets and PII (email, card, JWT, sensitive keys) from log events before they reach any Serilog sink, via a sink wrapper or an enricher. Reuses the OrionShade core redactor.</Description>
+    <PackageTags>redaction;pii;masking;secrets;logging;serilog;privacy;orion</PackageTags>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Serilog" Version="3.1.1" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Moongazing.OrionShade\Moongazing.OrionShade.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Moongazing.OrionShade.Serilog.Tests" />
+  </ItemGroup>
+</Project>
