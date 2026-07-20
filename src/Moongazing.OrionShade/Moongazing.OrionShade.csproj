@@ -6,6 +6,7 @@
     <PackageTags>redaction;pii;masking;secrets;logging;privacy;orion</PackageTags>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Orion.Abstractions" Version="1.0.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.0" />
   </ItemGroup>

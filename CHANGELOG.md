@@ -6,6 +6,23 @@ All notable changes to OrionShade are documented in this file. The format is bas
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-07-21
+
+### Changed
+
+- **Converged onto `Orion.Abstractions` 1.0.** `ShadeDiagnostics` now derives from the family's
+  `OrionInstrumentation` spine, so it inherits the shared static-tag stamping (multi-tenant /
+  multi-region labels via `SetStaticTags` are now applied to every redaction measurement) and the
+  family's disposal semantics. `AddOrionShade` now calls `AddOrionAbstractions()`.
+
+### Breaking
+
+- **The redaction metric was renamed `orionshade.redactions` → `orion.shade.redactions`** to match
+  the frozen Orion telemetry naming convention (`orion.{component}.{instrument}`). The **meter
+  name is unchanged** (`Moongazing.OrionShade`), so your OpenTelemetry `AddMeter("Moongazing.OrionShade")`
+  subscription still works — but any dashboard, alert, or query that referenced the metric by its
+  old name must be updated to `orion.shade.redactions`. The rule tag is unchanged.
+
 ## [0.5.0] - 2026-07-20
 
 ### Added

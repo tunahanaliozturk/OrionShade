@@ -3,6 +3,7 @@ namespace Moongazing.OrionShade;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
+using Moongazing.Orion.Abstractions;
 using Moongazing.OrionShade.Diagnostics;
 
 /// <summary>
@@ -21,6 +22,8 @@ public static class OrionShadeServiceCollectionExtensions
         Action<OrionShadeBuilder>? configure = null)
     {
         ArgumentNullException.ThrowIfNull(services);
+
+        services.AddOrionAbstractions();
 
         var builder = new OrionShadeBuilder();
         if (configure is null)
