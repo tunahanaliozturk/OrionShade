@@ -22,6 +22,15 @@ public sealed class ShadeDiagnosticsTests
     }
 
     [Fact]
+    public void Redaction_counter_uses_the_frozen_orion_metric_name()
+    {
+        // The Orion naming convention is orion.{component}.{instrument}; this pins OrionShade to it
+        // so the metric never drifts back to the pre-1.0 'orionshade.redactions' spelling.
+        using var diag = new ShadeDiagnostics();
+        Assert.Equal("orion.shade.redactions", diag.Redactions.Name);
+    }
+
+    [Fact]
     public void Record_increments_the_counter_with_the_rule_tag()
     {
         using var diag = new ShadeDiagnostics();
