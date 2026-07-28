@@ -46,6 +46,10 @@ internal static class ProviderAliasForwarder
     /// </summary>
     /// <param name="provider">The decorator whose filter identity should mirror the inner provider.</param>
     /// <param name="innerProvider">The concrete provider whose alias is forwarded.</param>
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2072:RequiresUnreferencedCode",
+        Justification = "The forwarder type is emitted at runtime with a known public (ILoggerProvider) constructor; this path is only reached when RuntimeFeature.IsDynamicCodeSupported (i.e. not under NativeAOT), where the emitted type is present.")]
     public static ILoggerProvider WithForwardedAlias(ILoggerProvider provider, ILoggerProvider innerProvider)
     {
         var reflection = AliasAttribute.Value;
@@ -69,6 +73,14 @@ internal static class ProviderAliasForwarder
         return (ILoggerProvider)Activator.CreateInstance(forwarderType, provider)!;
     }
 
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2026:RequiresUnreferencedCode",
+        Justification = "Resolves the well-known framework type ProviderAliasAttribute by name; if it (or its members) is trimmed away the method returns null and alias forwarding is silently skipped.")]
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2075:RequiresUnreferencedCode",
+        Justification = "GetProperty/GetConstructor target the framework ProviderAliasAttribute resolved above; a null result disables alias forwarding rather than failing.")]
     private static AliasAttributeReflection? ResolveAliasAttribute()
     {
         // The attribute lives in Microsoft.Extensions.Logging (net8/net9) or, type-forwarded, in
