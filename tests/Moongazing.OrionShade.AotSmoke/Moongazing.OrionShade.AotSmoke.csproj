@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!--
+      NativeAOT publish smoke test. `dotnet publish` on this project must succeed with zero
+      trim/AOT warnings, exercising the redactor end to end (DI registration, the source-generated
+      built-in rules, the sensitive-key set, and JSON redaction) in a rooted, trimmed, native
+      binary - proving the redaction path has no reflection and survives trimming.
+    -->
+    <TargetFramework>net10.0</TargetFramework>
+    <TargetFrameworks />
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <PublishAot>true</PublishAot>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <TrimmerSingleWarn>false</TrimmerSingleWarn>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Moongazing.OrionShade\Moongazing.OrionShade.csproj" />
+  </ItemGroup>
+</Project>

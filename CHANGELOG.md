@@ -6,6 +6,21 @@ All notable changes to OrionShade are documented in this file. The format is bas
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] - 2026-07-28
+
+### Fixed
+
+- **Trim / NativeAOT cleanliness.** The alias-forwarding logging integration
+  (`ProviderAliasForwarder`) already guarded its runtime IL emission behind
+  `RuntimeFeature.IsDynamicCodeSupported` and suppressed the dynamic-code warning (IL3050), but
+  left the reflection **trim** warnings (IL2026 / IL2072 / IL2075) unsuppressed — so a consumer
+  publishing trimmed or AOT saw spurious IL warnings originating from OrionShade. Those reflection
+  sites (resolving the framework `ProviderAliasAttribute` by name and constructing the emitted
+  forwarder) are now annotated with matching justifications, and a **NativeAOT publish smoke test**
+  was added to CI to keep the redaction path trim/AOT-clean. No behavior change: alias forwarding
+  is still skipped under AOT (the bare decorator is returned), and category-keyed filters keep
+  working everywhere.
+
 ## [0.6.0] - 2026-07-21
 
 ### Changed
