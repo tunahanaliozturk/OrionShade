@@ -56,7 +56,7 @@ Redaction happens two ways, and `RedactValue` decides between them by the key it
                                  key mask ──▶ "[REDACTED]"
 ```
 
-Every match increments the `orionshade.redactions` counter, tagged with the rule that fired, so you
+Every match increments the `orion.shade.redactions` counter, tagged with the rule that fired, so you
 can see what is being caught and how often.
 
 ---
@@ -361,7 +361,7 @@ OrionShade exposes a `System.Diagnostics.Metrics.Meter` named `Moongazing.OrionS
 
 | Instrument | Type | Tag | Meaning |
 |------------|------|-----|---------|
-| `orionshade.redactions` | `Counter<long>` | `rule` | One per redaction. The tag is the pattern name (for example `email`, `iban`, `phone`, `credit_card`, `jwt`, `connection_string_secret`) or `sensitive_key` for a key-based mask. |
+| `orion.shade.redactions` | `Counter<long>` | `rule` | One per redaction. The tag is the pattern name (for example `email`, `iban`, `phone`, `credit_card`, `jwt`, `connection_string_secret`) or `sensitive_key` for a key-based mask. |
 
 Wire it into OpenTelemetry by subscribing to the meter:
 
@@ -404,7 +404,7 @@ hardware-dependent and meant to be produced on the machine you care about.
 ## Versioning
 
 OrionShade follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Notable changes are
-recorded in [CHANGELOG.md](CHANGELOG.md). The current release is `0.4.0`; while the package is
+recorded in [CHANGELOG.md](CHANGELOG.md). The current release is `0.6.1`; while the package is
 pre-1.0, minor versions may still adjust the public surface.
 
 ---
